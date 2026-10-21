@@ -10,9 +10,12 @@ Requires Pi with extension support (Pi supplies the extension API as peer packag
 
 ```bash
 # Try it once, without installing:
-pi -e git:github.com/LionelGuo/pi-restate
+pi -e npm:pi-restate
 
-# Or install as a Pi package (pin to a tag with @v0.1.0):
+# Or install as a Pi package (pin to a version with @0.1.0):
+pi install npm:pi-restate
+
+# Git source works too (pin to a tag with @v0.1.0):
 pi install git:github.com/LionelGuo/pi-restate
 ```
 

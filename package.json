@@ -1,8 +1,15 @@
 {
 	"name": "pi-restate",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "/restate command for Pi: retract the latest turn from model context via append-only context edits, keeping the session on a single chain.",
 	"type": "module",
+	"files": [
+		"src",
+		"test",
+		"demo",
+		"docs",
+		"GLOSSARY.md"
+	],
 	"keywords": [
 		"pi-package"
 	],
