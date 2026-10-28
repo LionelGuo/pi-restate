@@ -13,7 +13,8 @@
  * - The retraction set is the target plus every context-producing entry after
  *   it up to the leaf. Entries already omitted are skipped.
  * - System messages, model changes, thinking-level changes, labels, usage,
- *   and custom entries are never nulled.
+ *   custom entries, and uneditable message roles (bash mode's
+ *   bashExecution) are never nulled.
  * - Refusals are typed: usage | nothing-to-restate | already-retracted |
  *   compaction.
  */
@@ -143,17 +144,22 @@ function projectionSets(branch: readonly SessionEntry[]): {
 }
 
 /**
- * Whether an entry type may be nulled by a context edit: user, assistant,
- * and tool-result message entries plus extension custom messages. System
- * messages, model/thinking/label/usage/custom/compaction entries are never
- * nulled; compaction entries additionally are not valid edit targets.
+ * Whether an entry type may be nulled by a context edit, mirroring what
+ * `SessionManager.appendContextEdit` accepts: user, assistant, and
+ * tool-result message entries plus extension custom messages. Everything
+ * else is skipped — system, model/thinking/label/usage/custom/compaction
+ * entries, and message roles Pi cannot edit. The known live case is bash
+ * mode (`!cmd`, `!!cmd`): it records a `bashExecution` message that does
+ * contribute model context, but the API refuses to null it, so a retraction
+ * leaves that output visible to the model (documented limitation).
  */
 function isRetractable(entry: SessionEntry): boolean {
 	if (entry.type === "custom_message") {
 		return true;
 	}
 	if (entry.type === "message") {
-		return entry.message.role !== "system";
+		const role = entry.message.role;
+		return role === "user" || role === "assistant" || role === "toolResult";
 	}
 	return false;
 }

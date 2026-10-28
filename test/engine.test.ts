@@ -99,6 +99,41 @@ describe("planRestate — happy path", () => {
 		}
 	});
 
+	it("excludes bash-mode bashExecution messages from the omission set", () => {
+		const sm = newSession();
+		appendSystem(sm);
+		const user = appendUser(sm, "prompt");
+		const asst = appendAssistant(sm, "answer");
+		// Bash mode (`!cmd`, and `!!cmd` as excludeFromContext) records message
+		// entries with role bashExecution. They live in model context, but
+		// appendContextEdit refuses to null them (it only accepts user /
+		// assistant / toolResult / custom_message), so planning them would
+		// throw mid-apply. Both variants must be skipped.
+		const bashVisible = sm.appendMessage({
+			role: "bashExecution",
+			command: "ls",
+			output: "file.ts",
+			exitCode: 0,
+			cancelled: false,
+			truncated: false,
+			timestamp: Date.now(),
+		});
+		const bashExcluded = sm.appendMessage({
+			role: "bashExecution",
+			command: "pwd",
+			output: "/tmp",
+			exitCode: 0,
+			cancelled: false,
+			truncated: false,
+			timestamp: Date.now(),
+			excludeFromContext: true,
+		});
+
+		const plan = planOrThrow([user, asst], sm.getBranch());
+		expect(plan.omit).not.toContain(bashVisible);
+		expect(plan.omit).not.toContain(bashExcluded);
+	});
+
 	it("skips entries already omitted, without re-omitting them", () => {
 		const sm = newSession();
 		appendSystem(sm);

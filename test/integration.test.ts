@@ -75,6 +75,48 @@ describe("/restate via the SDK", () => {
 		expect(seen).toBe(branch.length);
 	});
 
+	it("skips bash-mode entries instead of erroring mid-retraction", async () => {
+		const sm = SessionManager.inMemory();
+		appendSystem(sm);
+		const user = appendUser(sm, "Fix the bug");
+		const asst = appendAssistant(sm, "Done.");
+		// A bash-mode run (`!ls`) records a bashExecution message after the
+		// answer. The context-edit API cannot null it, so the retraction
+		// must skip it and still complete.
+		sm.appendMessage({
+			role: "bashExecution",
+			command: "ls",
+			output: "src",
+			exitCode: 0,
+			cancelled: false,
+			truncated: false,
+			timestamp: Date.now(),
+		});
+		const ui = recordingUIContext();
+		const session = await newRestateSession(sm, { bindings: { uiContext: ui.uiContext } });
+
+		await session.prompt("/restate");
+
+		const branch = sm.getBranch();
+		const editTargets = branch
+			.filter((entry) => entry.type === "context_edit")
+			.map((entry) => (entry.type === "context_edit" ? entry.targetId : ""));
+		expect(editTargets).toEqual([user, asst]);
+
+		const leaf = branch[branch.length - 1];
+		expect(leaf?.type).toBe("custom");
+		if (leaf?.type === "custom") {
+			expect(leaf.customType).toBe(MARKER_CUSTOM_TYPE);
+			expect(leaf.data).toMatchObject({ omittedIds: [user, asst], omittedCount: 2 });
+		}
+
+		// The retracted turn leaves model context; the bash entry stays (the
+		// API cannot null it) and the recovered prompt lands in the editor.
+		const roles = sm.buildSessionProjection().messages.map((message) => message.role);
+		expect(roles).toEqual(["system", "bashExecution"]);
+		expect(ui.editor.get()).toBe("Fix the bug");
+	});
+
 	describe("refusals", () => {
 		// Final wording: these literals pin the current copy so
 		// a reword is a deliberate change.
